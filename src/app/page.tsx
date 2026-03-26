@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react';
 import { Search, TrendingUp, Eye, Heart, MessageCircle, Clock, Download, Filter, ChevronDown, BarChart3, Flame, ExternalLink } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import { formatDistanceToNow } from 'date-fns';
-import { parseYouTubeUrl, getChannelId, getChannel, getVideos, exportToCSV, Video, Channel, formatNumber, formatDuration } from '@/lib/youtube';
+import { parseYouTubeUrl, exportToCSV, Video, Channel, formatNumber, formatDuration } from '@/lib/youtube';
 
 type SortField = 'viewCount' | 'likeCount' | 'engagementRate' | 'publishedAt' | 'trendScore';
 type SortOrder = 'asc' | 'desc';
@@ -37,13 +37,20 @@ export default function Home() {
     setError('');
 
     try {
-      const id = await getChannelId(channelId);
-      const [channelData, videoData] = await Promise.all([
-        getChannel(id),
-        getVideos(id)
-      ]);
-      setChannel(channelData);
-      setVideos(videoData);
+      const response = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to fetch channel data');
+      }
+      
+      setChannel(data.channel);
+      setVideos(data.videos);
     } catch (err: any) {
       setError(err.message || 'Failed to fetch channel data. Check your API key or URL.');
     } finally {
