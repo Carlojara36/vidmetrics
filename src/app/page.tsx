@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
-import { Search, TrendingUp, Eye, Heart, Clock, Download, Filter, ChevronDown, BarChart3, Flame, Users, Play, TrendingDown, Sun, Moon } from 'lucide-react';
+import { useState, useMemo, useEffect, useRef } from 'react';
+import { Search, TrendingUp, Eye, Heart, Clock, Download, Filter, ChevronDown, BarChart3, Flame, Users, Play, Sun, Moon, Zap, TrendingDown, ChevronRight } from 'lucide-react';
 import { XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar, AreaChart, Area } from 'recharts';
 import { formatDistanceToNow } from 'date-fns';
 import { parseYouTubeUrl, exportToCSV, Video, Channel, formatNumber, formatDuration } from '@/lib/youtube';
@@ -11,92 +11,131 @@ type SortOrder = 'asc' | 'desc';
 type TimeFilter = 'all' | 'week' | 'month' | 'quarter';
 type Theme = 'light' | 'dark';
 
-function Skeleton({ className }: { className: string }) {
-  return <div className={`animate-pulse bg-slate-200 dark:bg-slate-700 rounded ${className}`} />;
-}
-
-function MetricCard({ icon: Icon, label, value, trend, trendUp }: { icon: React.ElementType, label: string, value: string, trend?: string, trendUp?: boolean }) {
+function FadeIn({ children, delay = 0, className = '' }: { children: React.ReactNode, delay?: number, className?: string }) {
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-slate-700 transition-colors">
-      <div className="flex items-center justify-between mb-4">
-        <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-500/20 flex items-center justify-center">
-          <Icon className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-        </div>
-        {trend && (
-          <div className={`flex items-center gap-1 text-sm font-medium ${trendUp ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
-            {trendUp ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
-            {trend}
-          </div>
-        )}
-      </div>
-      <p className="text-sm text-slate-500 dark:text-slate-400 mb-1">{label}</p>
-      <p className="text-2xl font-bold text-slate-900 dark:text-white">{value}</p>
+    <div 
+      className={`animate-fade-in ${className}`}
+      style={{ animationDelay: `${delay}ms`, animationFillMode: 'both' }}
+    >
+      {children}
     </div>
   );
 }
 
-function VideoCard({ video, rank, onClick }: { video: Video, rank: number, onClick: () => void }) {
+function SlideUp({ children, delay = 0, className = '' }: { children: React.ReactNode, delay?: number, className?: string }) {
   return (
     <div 
-      onClick={onClick}
-      className="group bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-slate-100 dark:border-slate-700 hover:shadow-md hover:border-indigo-100 dark:hover:border-indigo-500/30 transition-all duration-200 cursor-pointer"
+      className={`animate-slide-up ${className}`}
+      style={{ animationDelay: `${delay}ms`, animationFillMode: 'both' }}
     >
-      <div className="flex gap-4">
-        <span className="flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 text-sm font-semibold text-slate-500 dark:text-slate-400">
-          {rank}
-        </span>
-        <div className="relative flex-shrink-0">
-          <img
-            src={video.thumbnail}
-            alt={video.title}
-            className="w-40 h-24 rounded-xl object-cover"
-          />
-          <div className="absolute bottom-2 right-2 bg-black/80 px-2 py-0.5 rounded text-xs font-medium text-white">
-            {formatDuration(video.duration)}
-          </div>
-          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 rounded-xl transition-colors flex items-center justify-center">
-            <Play className="w-10 h-10 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
-          </div>
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-start gap-2 mb-2">
-            <h4 className="font-semibold text-slate-900 dark:text-white line-clamp-2 flex-1">{video.title}</h4>
-            {video.isTrending && (
-              <span className="flex-shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-full bg-amber-50 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 text-xs font-medium">
-                <Flame className="w-3 h-3" />
-                Trending
-              </span>
+      {children}
+    </div>
+  );
+}
+
+function SkeletonPulse({ className = '' }: { className?: string }) {
+  return <div className={`animate-pulse-skeleton bg-gradient-to-r from-slate-200 via-slate-100 to-slate-200 bg-[length:200%_100%] rounded-lg ${className}`} />;
+}
+
+function MetricCard({ icon: Icon, label, value, trend, trendUp, delay = 0 }: { 
+  icon: React.ElementType, 
+  label: string, 
+  value: string, 
+  trend?: string, 
+  trendUp?: boolean,
+  delay?: number 
+}) {
+  return (
+    <SlideUp delay={delay}>
+      <div className="group relative overflow-hidden bg-white dark:bg-slate-800/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg shadow-slate-200/50 dark:shadow-slate-900/50 border border-slate-200/50 dark:border-slate-700/50 hover:shadow-xl hover:shadow-indigo-500/10 hover:-translate-y-1 transition-all duration-300">
+        <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 via-transparent to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+        <div className="relative">
+          <div className="flex items-center justify-between mb-4">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/30 group-hover:scale-110 transition-transform duration-300">
+              <Icon className="w-6 h-6 text-white" />
+            </div>
+            {trend && (
+              <div className={`flex items-center gap-1 text-sm font-medium px-2 py-1 rounded-full ${trendUp ? 'bg-emerald-50 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' : 'bg-rose-50 dark:bg-rose-500/20 text-rose-600 dark:text-rose-400'}`}>
+                {trendUp ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                {trend}
+              </div>
             )}
           </div>
-          <div className="flex items-center gap-4 text-sm text-slate-500 dark:text-slate-400 mb-3">
-            <span className="flex items-center gap-1">
-              <Clock className="w-3.5 h-3.5" />
-              {formatDistanceToNow(new Date(video.publishedAt), { addSuffix: true })}
-            </span>
+          <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">{label}</p>
+          <p className="text-3xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-200 bg-clip-text text-transparent">{value}</p>
+        </div>
+      </div>
+    </SlideUp>
+  );
+}
+
+function VideoCard({ video, rank, onClick, delay = 0 }: { video: Video, rank: number, onClick: () => void, delay?: number }) {
+  return (
+    <SlideUp delay={delay}>
+      <div 
+        onClick={onClick}
+        className="group relative bg-white dark:bg-slate-800/80 backdrop-blur-sm rounded-2xl p-5 shadow-lg shadow-slate-200/50 dark:shadow-slate-900/50 border border-slate-200/50 dark:border-slate-700/50 hover:shadow-xl hover:shadow-indigo-500/10 hover:border-indigo-200 dark:hover:border-indigo-500/30 hover:-translate-y-0.5 transition-all duration-300 cursor-pointer overflow-hidden"
+      >
+        <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/0 via-indigo-500/5 to-purple-500/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
+        
+        <div className="relative flex gap-4">
+          <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-600 text-sm font-bold text-slate-500 dark:text-slate-400 group-hover:from-indigo-500 group-hover:to-purple-600 group-hover:text-white transition-all duration-300">
+            {rank}
           </div>
-          <div className="grid grid-cols-4 gap-4">
-            <div>
-              <p className="text-xs text-slate-400 dark:text-slate-500 mb-0.5">Views</p>
-              <p className="font-semibold text-slate-900 dark:text-white">{formatNumber(video.viewCount)}</p>
+          
+          <div className="relative flex-shrink-0 group/thumbnail">
+            <img
+              src={video.thumbnail}
+              alt={video.title}
+              className="w-44 h-28 rounded-xl object-cover shadow-lg group-hover:shadow-xl transition-shadow duration-300"
+            />
+            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 rounded-xl transition-colors duration-300 flex items-center justify-center">
+              <div className="w-14 h-14 rounded-full bg-white/90 dark:bg-white flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg">
+                <Play className="w-6 h-6 text-slate-900 ml-1" />
+              </div>
             </div>
-            <div>
-              <p className="text-xs text-slate-400 dark:text-slate-500 mb-0.5">Likes</p>
-              <p className="font-semibold text-slate-900 dark:text-white">{formatNumber(video.likeCount)}</p>
+            <div className="absolute bottom-2 right-2 bg-black/80 backdrop-blur-sm px-2 py-0.5 rounded-md text-xs font-medium text-white">
+              {formatDuration(video.duration)}
             </div>
-            <div>
-              <p className="text-xs text-slate-400 dark:text-slate-500 mb-0.5">Comments</p>
-              <p className="font-semibold text-slate-900 dark:text-white">{formatNumber(video.commentCount)}</p>
+          </div>
+          
+          <div className="flex-1 min-w-0">
+            <div className="flex items-start gap-2 mb-2">
+              <h4 className="font-semibold text-slate-900 dark:text-white line-clamp-2 flex-1 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{video.title}</h4>
+              {video.isTrending && (
+                <span className="flex-shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-500/20 dark:to-orange-500/20 text-amber-600 dark:text-amber-400 text-xs font-semibold shadow-sm">
+                  <Flame className="w-3 h-3" />
+                  Trending
+                </span>
+              )}
             </div>
-            <div>
-              <p className="text-xs text-slate-400 dark:text-slate-500 mb-0.5">Engagement</p>
-              <p className={`font-semibold ${video.engagementRate > 5 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-white'}`}>
-                {video.engagementRate.toFixed(1)}%
-              </p>
+            
+            <div className="flex items-center gap-3 text-sm text-slate-500 dark:text-slate-400 mb-4">
+              <span className="flex items-center gap-1.5">
+                <Clock className="w-4 h-4" />
+                {formatDistanceToNow(new Date(video.publishedAt), { addSuffix: true })}
+              </span>
+            </div>
+            
+            <div className="grid grid-cols-4 gap-3">
+              {[
+                { label: 'Views', value: formatNumber(video.viewCount), highlight: false },
+                { label: 'Likes', value: formatNumber(video.likeCount), highlight: false },
+                { label: 'Comments', value: formatNumber(video.commentCount), highlight: false },
+                { label: 'Engagement', value: `${video.engagementRate.toFixed(1)}%`, highlight: video.engagementRate > 5 },
+              ].map((stat, i) => (
+                <div key={i} className="text-center">
+                  <p className="text-xs text-slate-400 dark:text-slate-500 mb-0.5">{stat.label}</p>
+                  <p className={`font-semibold text-sm transition-colors ${stat.highlight ? 'text-emerald-500' : 'text-slate-700 dark:text-slate-300'}`}>
+                    {stat.value}
+                  </p>
+                </div>
+              ))}
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </SlideUp>
   );
 }
 
@@ -112,6 +151,7 @@ export default function Home() {
   const [showFilters, setShowFilters] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [theme, setTheme] = useState<Theme>('light');
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -134,13 +174,13 @@ export default function Home() {
 
   const handleAnalyze = async () => {
     if (!url.trim()) {
-      setError('Please enter a YouTube channel URL');
+      setError('Enter a YouTube channel URL');
       return;
     }
 
     const channelId = parseYouTubeUrl(url);
     if (!channelId) {
-      setError('Invalid YouTube URL. Try formats like youtube.com/@channel or youtube.com/channel/UC...');
+      setError('Invalid URL. Try @channel or youtube.com/channel/UC...');
       return;
     }
 
@@ -157,13 +197,13 @@ export default function Home() {
       const data = await response.json();
       
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to fetch channel data');
+        throw new Error(data.error || 'Failed to fetch');
       }
       
       setChannel(data.channel);
       setVideos(data.videos);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to fetch channel data. Check your API key or URL.';
+      const message = err instanceof Error ? err.message : 'Failed to fetch data';
       setError(message);
     } finally {
       setLoading(false);
@@ -199,7 +239,6 @@ export default function Home() {
       name: v.title.length > 15 ? v.title.substring(0, 15) + '...' : v.title,
       views: v.viewCount,
       engagement: v.engagementRate,
-      likes: v.likeCount,
     }));
   }, [filteredVideos]);
 
@@ -211,129 +250,146 @@ export default function Home() {
       totalLikes: filteredForStats.reduce((sum, v) => sum + v.likeCount, 0),
       avgEngagement: filteredForStats.reduce((sum, v) => sum + v.engagementRate, 0) / filteredForStats.length,
       trendingCount: filteredForStats.filter(v => v.isTrending).length,
-      avgViews: filteredForStats.length > 0 ? filteredForStats.reduce((sum, v) => sum + v.viewCount, 0) / filteredForStats.length : 0,
     };
   }, [videos, filteredVideos, timeFilter]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      handleAnalyze();
-    }
+    if (e.key === 'Enter') handleAnalyze();
   };
 
   if (!mounted) return null;
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 transition-colors">
-      <header className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-50 transition-colors">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50/30 to-purple-50/30 dark:from-slate-900 dark:via-slate-900 dark:to-slate-900 transition-colors">
+      <header className="sticky top-0 z-50 backdrop-blur-xl bg-white/80 dark:bg-slate-900/80 border-b border-slate-200/50 dark:border-slate-800/50 transition-colors">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center">
-                <BarChart3 className="w-5 h-5 text-white" />
+            <FadeIn>
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 flex items-center justify-center shadow-lg shadow-indigo-500/30 animate-pulse-slow">
+                    <BarChart3 className="w-5 h-5 text-white" />
+                  </div>
+                  <div className="absolute -inset-1 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 -z-10 blur opacity-30 animate-pulse" />
+                </div>
+                <span className="text-xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-200 bg-clip-text text-transparent">VidMetrics</span>
               </div>
-              <span className="text-xl font-bold text-slate-900 dark:text-white">VidMetrics</span>
-            </div>
-            <div className="flex items-center gap-4">
-              <nav className="hidden md:flex items-center gap-6">
-                <a href="#" className="text-sm font-medium text-indigo-600 dark:text-indigo-400">Dashboard</a>
-                <a href="#" className="text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">Channels</a>
-                <a href="#" className="text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">Reports</a>
-                <a href="#" className="text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">Settings</a>
+            </FadeIn>
+            
+            <FadeIn delay={100}>
+              <nav className="hidden md:flex items-center gap-2">
+                {['Dashboard', 'Channels', 'Reports'].map((item, i) => (
+                  <a 
+                    key={item} 
+                    href="#" 
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${i === 0 ? 'bg-indigo-50 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'}`}
+                  >
+                    {item}
+                  </a>
+                ))}
               </nav>
+            </FadeIn>
+            
+            <FadeIn delay={200}>
               <button
                 onClick={toggleTheme}
-                className="p-2 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+                className="group relative p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all duration-300 hover:scale-105"
                 aria-label="Toggle theme"
               >
-                {theme === 'light' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
+                <div className="relative w-5 h-5">
+                  <Sun className={`absolute inset-0 w-5 h-5 transition-all duration-300 ${theme === 'dark' ? 'opacity-0 rotate-90 scale-0' : 'opacity-100 rotate-0 scale-100'}`} />
+                  <Moon className={`absolute inset-0 w-5 h-5 transition-all duration-300 ${theme === 'light' ? 'opacity-0 -rotate-90 scale-0' : 'opacity-100 rotate-0 scale-100'}`} />
+                </div>
               </button>
-            </div>
+            </FadeIn>
           </div>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Competitor Analysis</h1>
-          <p className="text-slate-500 dark:text-slate-400">Analyze any YouTube channel to discover trending content and performance insights.</p>
-        </div>
-
-        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 mb-8 transition-colors">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-              <input
-                type="text"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Paste YouTube channel URL (e.g., @MrBeast or youtube.com/channel/UC...)"
-                className="w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 py-3.5 pl-12 pr-4 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-shadow"
-              />
-            </div>
-            <button
-              onClick={handleAnalyze}
-              disabled={loading}
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 py-3.5 font-semibold text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
-            >
-              {loading ? (
-                <>
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Analyzing...
-                </>
-              ) : (
-                <>
-                  <TrendingUp className="w-5 h-5" />
-                  Analyze Channel
-                </>
-              )}
-            </button>
+        <FadeIn delay={300}>
+          <div className="mb-10">
+            <h1 className="text-4xl font-bold mb-3">
+              <span className="bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-200 bg-clip-text text-transparent">
+                Competitor Analysis
+              </span>
+            </h1>
+            <p className="text-lg text-slate-500 dark:text-slate-400">
+              Discover trending content and performance insights from any YouTube channel.
+            </p>
           </div>
-          {error && (
-            <p className="mt-3 text-sm text-rose-600 dark:text-rose-400">{error}</p>
-          )}
-        </div>
+        </FadeIn>
 
-        {loading && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-              {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-slate-700">
-                  <Skeleton className="w-10 h-10 rounded-xl mb-4" />
-                  <Skeleton className="w-20 h-4 mb-2" />
-                  <Skeleton className="w-32 h-8" />
-                </div>
-              ))}
-            </div>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-              <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-slate-700 h-80">
-                <Skeleton className="w-40 h-6 mb-4" />
-                <Skeleton className="w-full h-56" />
-              </div>
-              <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-slate-700 h-80">
-                <Skeleton className="w-40 h-6 mb-4" />
-                <Skeleton className="w-full h-56" />
-              </div>
-            </div>
-            <div className="space-y-4">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-slate-100 dark:border-slate-700">
-                  <div className="flex gap-4">
-                    <Skeleton className="w-8 h-8 rounded-full" />
-                    <Skeleton className="w-40 h-24 rounded-xl" />
-                    <div className="flex-1 space-y-2">
-                      <Skeleton className="w-3/4 h-5" />
-                      <Skeleton className="w-1/4 h-4" />
-                      <div className="grid grid-cols-4 gap-4 mt-2">
-                        {[1, 2, 3, 4].map((j) => (
-                          <Skeleton key={j} className="h-8" />
-                        ))}
-                      </div>
-                    </div>
+        <FadeIn delay={400}>
+          <div className="relative mb-10">
+            <div className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 -z-10 blur opacity-20" />
+            <div className="relative bg-white/90 dark:bg-slate-800/90 backdrop-blur-xl rounded-2xl p-6 shadow-xl border border-slate-200/50 dark:border-slate-700/50 transition-colors">
+              <div className="flex flex-col md:flex-row gap-4">
+                <div className="relative flex-1 group">
+                  <div className="absolute -inset-0.5 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 opacity-0 group-focus-within:opacity-100 transition-opacity duration-300 -z-10" />
+                  <div className="relative flex items-center">
+                    <Search className="absolute left-4 w-5 h-5 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+                    <input
+                      ref={inputRef}
+                      type="text"
+                      value={url}
+                      onChange={(e) => setUrl(e.target.value)}
+                      onKeyDown={handleKeyDown}
+                      placeholder="Paste YouTube channel URL (e.g., @MrBeast)"
+                      className="w-full rounded-xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 py-4 pl-12 pr-4 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-indigo-500 transition-all"
+                    />
                   </div>
                 </div>
+                <button
+                  onClick={handleAnalyze}
+                  disabled={loading}
+                  className="group relative inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 px-8 py-4 font-semibold text-white shadow-lg shadow-indigo-500/30 hover:shadow-xl hover:shadow-indigo-500/40 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] overflow-hidden"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                  <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
+                  {loading ? (
+                    <>
+                      <div className="relative w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <span className="relative">Analyzing...</span>
+                    </>
+                  ) : (
+                    <>
+                      <TrendingUp className="relative w-5 h-5 group-hover:scale-110 transition-transform" />
+                      <span className="relative">Analyze Channel</span>
+                    </>
+                  )}
+                </button>
+              </div>
+              {error && (
+                <p className="mt-3 text-sm text-rose-500 flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                  {error}
+                </p>
+              )}
+            </div>
+          </div>
+        </FadeIn>
+
+        {loading && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              {[0, 1, 2, 3].map((i) => (
+                <div key={i} className="bg-white dark:bg-slate-800/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-slate-200/50 dark:border-slate-700/50">
+                  <SkeletonPulse className="w-12 h-12 rounded-xl mb-4" />
+                  <SkeletonPulse className="w-20 h-4 mb-2" />
+                  <SkeletonPulse className="w-32 h-8" />
+                </div>
               ))}
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="bg-white dark:bg-slate-800/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-slate-200/50 dark:border-slate-700/50">
+                <SkeletonPulse className="w-40 h-6 mb-6" />
+                <SkeletonPulse className="w-full h-56" />
+              </div>
+              <div className="bg-white dark:bg-slate-800/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-slate-200/50 dark:border-slate-700/50">
+                <SkeletonPulse className="w-40 h-6 mb-6" />
+                <SkeletonPulse className="w-full h-56" />
+              </div>
             </div>
           </div>
         )}
@@ -341,184 +397,213 @@ export default function Home() {
         {channel && stats && !loading && (
           <>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-              <MetricCard
-                icon={Eye}
-                label="Total Views"
-                value={formatNumber(stats.totalViews)}
-              />
-              <MetricCard
-                icon={Heart}
-                label="Total Likes"
-                value={formatNumber(stats.totalLikes)}
-              />
-              <MetricCard
-                icon={Users}
-                label="Avg. Engagement"
-                value={`${stats.avgEngagement.toFixed(1)}%`}
-              />
-              <MetricCard
-                icon={Flame}
-                label="Trending Now"
-                value={stats.trendingCount.toString()}
-                trend="This month"
-                trendUp={true}
-              />
+              <MetricCard icon={Eye} label="Total Views" value={formatNumber(stats.totalViews)} delay={0} />
+              <MetricCard icon={Heart} label="Total Likes" value={formatNumber(stats.totalLikes)} delay={100} />
+              <MetricCard icon={Users} label="Avg. Engagement" value={`${stats.avgEngagement.toFixed(1)}%`} delay={200} />
+              <MetricCard icon={Flame} label="Trending Now" value={stats.trendingCount.toString()} trend="This month" trendUp={true} delay={300} />
             </div>
 
-            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 mb-6 transition-colors">
-              <div className="flex flex-wrap items-center gap-4 mb-6">
-                <img src={channel.thumbnail} alt={channel.title} className="w-14 h-14 rounded-full" />
-                <div>
-                  <h2 className="text-lg font-semibold text-slate-900 dark:text-white">{channel.title}</h2>
-                  <p className="text-sm text-slate-500 dark:text-slate-400">{formatNumber(channel.subscriberCount)} subscribers · {channel.videoCount} videos</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div>
-                  <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">Views Performance</h3>
-                  {chartData.length > 0 ? (
-                    <ResponsiveContainer width="100%" height={240}>
-                      <AreaChart data={chartData}>
-                        <defs>
-                          <linearGradient id="viewsGradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#6366f1" stopOpacity={0.2}/>
-                            <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
-                          </linearGradient>
-                        </defs>
-                        <XAxis dataKey="name" stroke="#94a3b8" fontSize={10} tickLine={false} axisLine={false} />
-                        <YAxis stroke="#94a3b8" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(v) => formatNumber(v)} />
-                        <Tooltip
-                          contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '12px' }}
-                          formatter={(value) => [formatNumber(Number(value)), 'Views']}
-                        />
-                        <Area type="monotone" dataKey="views" stroke="#6366f1" fill="url(#viewsGradient)" strokeWidth={2} />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  ) : (
-                    <div className="h-60 flex items-center justify-center text-slate-400 dark:text-slate-500">No data available</div>
-                  )}
-                </div>
-                <div>
-                  <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">Engagement Rate</h3>
-                  {chartData.length > 0 ? (
-                    <ResponsiveContainer width="100%" height={240}>
-                      <BarChart data={chartData}>
-                        <XAxis dataKey="name" stroke="#94a3b8" fontSize={10} tickLine={false} axisLine={false} />
-                        <YAxis stroke="#94a3b8" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(v) => `${v.toFixed(1)}%`} />
-                        <Tooltip
-                          contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '12px' }}
-                          formatter={(value) => [`${Number(value).toFixed(2)}%`, 'Engagement']}
-                        />
-                        <Bar dataKey="engagement" fill="#10b981" radius={[4, 4, 0, 0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  ) : (
-                    <div className="h-60 flex items-center justify-center text-slate-400 dark:text-slate-500">No data available</div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors">
-              <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-                <div className="flex items-center gap-3">
-                  <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Video Performance</h3>
-                  <span className="px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-700 text-sm font-medium text-slate-600 dark:text-slate-300">
-                    {filteredVideos.length} videos
-                  </span>
-                </div>
-                <div className="flex flex-wrap gap-3">
-                  <select
-                    value={timeFilter}
-                    onChange={(e) => setTimeFilter(e.target.value as TimeFilter)}
-                    className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  >
-                    <option value="all">All Time</option>
-                    <option value="week">Last 7 Days</option>
-                    <option value="month">Last 30 Days</option>
-                    <option value="quarter">Last 90 Days</option>
-                  </select>
-                  <button
-                    onClick={() => setShowFilters(!showFilters)}
-                    className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700"
-                  >
-                    <Filter className="w-4 h-4" />
-                    Sort
-                    <ChevronDown className={`w-4 h-4 transition-transform ${showFilters ? 'rotate-180' : ''}`} />
-                  </button>
-                  <button
-                    onClick={() => exportToCSV(filteredVideos, channel.title)}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 text-sm font-medium text-white hover:bg-emerald-700"
-                  >
-                    <Download className="w-4 h-4" />
-                    Export CSV
-                  </button>
-                </div>
-              </div>
-
-              {showFilters && (
-                <div className="flex flex-wrap gap-4 p-4 bg-slate-50 dark:bg-slate-700/50 rounded-xl mb-6">
-                  <div>
-                    <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5">Sort By</label>
-                    <select
-                      value={sortField}
-                      onChange={(e) => setSortField(e.target.value as SortField)}
-                      className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    >
-                      <option value="trendScore">Trending Score</option>
-                      <option value="viewCount">Views</option>
-                      <option value="likeCount">Likes</option>
-                      <option value="engagementRate">Engagement Rate</option>
-                      <option value="publishedAt">Publish Date</option>
-                    </select>
+            <SlideUp delay={400}>
+              <div className="relative mb-8">
+                <div className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-pink-500/10 blur-xl" />
+                <div className="relative bg-white/90 dark:bg-slate-800/90 backdrop-blur-xl rounded-2xl shadow-xl border border-slate-200/50 dark:border-slate-700/50 p-6 transition-colors">
+                  <div className="flex flex-wrap items-center gap-4 mb-6 pb-6 border-b border-slate-200/50 dark:border-slate-700/50">
+                    <img src={channel.thumbnail} alt={channel.title} className="w-16 h-16 rounded-2xl shadow-lg" />
+                    <div>
+                      <h2 className="text-xl font-bold text-slate-900 dark:text-white">{channel.title}</h2>
+                      <p className="text-sm text-slate-500 dark:text-slate-400 flex items-center gap-2">
+                        <span>{formatNumber(channel.subscriberCount)} subscribers</span>
+                        <span className="w-1 h-1 rounded-full bg-slate-400" />
+                        <span>{channel.videoCount} videos</span>
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5">Order</label>
-                    <select
-                      value={sortOrder}
-                      onChange={(e) => setSortOrder(e.target.value as SortOrder)}
-                      className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    >
-                      <option value="desc">Highest First</option>
-                      <option value="asc">Lowest First</option>
-                    </select>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div>
+                      <div className="flex items-center gap-2 mb-4">
+                        <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
+                        <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Views Performance</h3>
+                      </div>
+                      {chartData.length > 0 ? (
+                        <ResponsiveContainer width="100%" height={280}>
+                          <AreaChart data={chartData}>
+                            <defs>
+                              <linearGradient id="viewsGradientNew" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stopColor="#6366f1" stopOpacity={0.3}/>
+                                <stop offset="100%" stopColor="#6366f1" stopOpacity={0}/>
+                              </linearGradient>
+                            </defs>
+                            <XAxis dataKey="name" stroke="#94a3b8" fontSize={10} tickLine={false} axisLine={false} />
+                            <YAxis stroke="#94a3b8" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(v) => formatNumber(v)} />
+                            <Tooltip
+                              contentStyle={{ 
+                                backgroundColor: 'rgba(255,255,255,0.95)', 
+                                backdropFilter: 'blur(10px)',
+                                border: '1px solid rgba(0,0,0,0.1)', 
+                                borderRadius: '12px', 
+                                fontSize: '12px',
+                                boxShadow: '0 10px 40px rgba(0,0,0,0.1)'
+                              }}
+                              formatter={(value) => [formatNumber(Number(value)), 'Views']}
+                            />
+                            <Area type="monotone" dataKey="views" stroke="#6366f1" fill="url(#viewsGradientNew)" strokeWidth={3} />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      ) : (
+                        <div className="h-72 flex items-center justify-center text-slate-400">No data available</div>
+                      )}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 mb-4">
+                        <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                        <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Engagement Rate</h3>
+                      </div>
+                      {chartData.length > 0 ? (
+                        <ResponsiveContainer width="100%" height={280}>
+                          <BarChart data={chartData}>
+                            <XAxis dataKey="name" stroke="#94a3b8" fontSize={10} tickLine={false} axisLine={false} />
+                            <YAxis stroke="#94a3b8" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(v) => `${v.toFixed(1)}%`} />
+                            <Tooltip
+                              contentStyle={{ 
+                                backgroundColor: 'rgba(255,255,255,0.95)', 
+                                backdropFilter: 'blur(10px)',
+                                border: '1px solid rgba(0,0,0,0.1)', 
+                                borderRadius: '12px', 
+                                fontSize: '12px',
+                                boxShadow: '0 10px 40px rgba(0,0,0,0.1)'
+                              }}
+                              formatter={(value) => [`${Number(value).toFixed(2)}%`, 'Engagement']}
+                            />
+                            <Bar dataKey="engagement" fill="#10b981" radius={[6, 6, 0, 0]} />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      ) : (
+                        <div className="h-72 flex items-center justify-center text-slate-400">No data available</div>
+                      )}
+                    </div>
                   </div>
                 </div>
-              )}
-
-              <div className="space-y-4">
-                {filteredVideos.map((video, index) => (
-                  <VideoCard
-                    key={video.id}
-                    video={video}
-                    rank={index + 1}
-                    onClick={() => window.open(`https://youtube.com/watch?v=${video.id}`, '_blank')}
-                  />
-                ))}
               </div>
-            </div>
+            </SlideUp>
+
+            <SlideUp delay={500}>
+              <div className="relative">
+                <div className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-pink-500/10 via-purple-500/10 to-indigo-500/10 blur-xl" />
+                <div className="relative bg-white/90 dark:bg-slate-800/90 backdrop-blur-xl rounded-2xl shadow-xl border border-slate-200/50 dark:border-slate-700/50 p-6 transition-colors">
+                  <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+                    <div className="flex items-center gap-3">
+                      <h3 className="text-lg font-bold text-slate-900 dark:text-white">Video Performance</h3>
+                      <span className="px-3 py-1 rounded-full bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-500/20 dark:to-purple-500/20 text-sm font-medium text-indigo-600 dark:text-indigo-400">
+                        {filteredVideos.length} videos
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-3">
+                      <select
+                        value={timeFilter}
+                        onChange={(e) => setTimeFilter(e.target.value as TimeFilter)}
+                        className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+                      >
+                        <option value="all">All Time</option>
+                        <option value="week">Last 7 Days</option>
+                        <option value="month">Last 30 Days</option>
+                        <option value="quarter">Last 90 Days</option>
+                      </select>
+                      <button
+                        onClick={() => setShowFilters(!showFilters)}
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+                      >
+                        <Filter className="w-4 h-4" />
+                        Sort
+                        <ChevronDown className={`w-4 h-4 transition-transform ${showFilters ? 'rotate-180' : ''}`} />
+                      </button>
+                      <button
+                        onClick={() => exportToCSV(filteredVideos, channel.title)}
+                        className="group relative inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-sm font-medium text-white shadow-lg shadow-emerald-500/20 hover:shadow-xl hover:shadow-emerald-500/30 transition-all"
+                      >
+                        <Download className="w-4 h-4 group-hover:translate-y-0.5 transition-transform" />
+                        Export
+                        <ChevronRight className="w-4 h-4 opacity-0 group-hover:opacity-100 -ml-2 transition-all" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {showFilters && (
+                    <div className="flex flex-wrap gap-4 p-4 bg-slate-50/80 dark:bg-slate-900/50 rounded-xl mb-6 backdrop-blur-sm animate-slide-down">
+                      <div>
+                        <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5">Sort By</label>
+                        <select
+                          value={sortField}
+                          onChange={(e) => setSortField(e.target.value as SortField)}
+                          className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        >
+                          <option value="trendScore">Trending Score</option>
+                          <option value="viewCount">Views</option>
+                          <option value="likeCount">Likes</option>
+                          <option value="engagementRate">Engagement Rate</option>
+                          <option value="publishedAt">Publish Date</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5">Order</label>
+                        <select
+                          value={sortOrder}
+                          onChange={(e) => setSortOrder(e.target.value as SortOrder)}
+                          className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        >
+                          <option value="desc">Highest First</option>
+                          <option value="asc">Lowest First</option>
+                        </select>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="space-y-4">
+                    {filteredVideos.map((video, index) => (
+                      <VideoCard
+                        key={video.id}
+                        video={video}
+                        rank={index + 1}
+                        delay={index * 50}
+                        onClick={() => window.open(`https://youtube.com/watch?v=${video.id}`, '_blank')}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </SlideUp>
           </>
         )}
 
         {!channel && !loading && (
-          <div className="text-center py-20">
-            <div className="w-20 h-20 rounded-2xl bg-indigo-50 dark:bg-indigo-500/20 flex items-center justify-center mx-auto mb-6">
-              <BarChart3 className="w-10 h-10 text-indigo-400 dark:text-indigo-300" />
+          <FadeIn delay={500}>
+            <div className="text-center py-24">
+              <div className="relative inline-block mb-8">
+                <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-2xl shadow-indigo-500/30 animate-float">
+                  <BarChart3 className="w-12 h-12 text-white" />
+                </div>
+                <div className="absolute -inset-4 rounded-3xl bg-gradient-to-r from-indigo-500 to-purple-500 -z-10 blur-2xl opacity-30 animate-pulse" />
+              </div>
+              <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-3">Ready to analyze?</h3>
+              <p className="text-slate-500 dark:text-slate-400 max-w-md mx-auto">
+                Enter any YouTube channel URL above to discover trending content and performance insights.
+              </p>
             </div>
-            <h3 className="text-xl font-semibold text-slate-900 dark:text-white mb-2">Enter a channel URL to get started</h3>
-            <p className="text-slate-500 dark:text-slate-400 max-w-md mx-auto">
-              Paste any YouTube channel link above to analyze video performance and discover trending content.
-            </p>
-          </div>
+          </FadeIn>
         )}
       </main>
 
-      <footer className="border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 mt-12 transition-colors">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <p className="text-sm text-slate-500 dark:text-slate-400 text-center">
-            VidMetrics — YouTube Analytics for Enterprise Creators
-          </p>
+      <footer className="border-t border-slate-200/50 dark:border-slate-800/50 bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl mt-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              VidMetrics — YouTube Analytics for Enterprise Creators
+            </p>
+            <div className="flex items-center gap-2 text-xs text-slate-400 dark:text-slate-500">
+              <Zap className="w-3 h-3" />
+              Powered by YouTube Data API
+            </div>
+          </div>
         </div>
       </footer>
     </div>
