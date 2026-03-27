@@ -1,14 +1,103 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import { Search, TrendingUp, Eye, Heart, MessageCircle, Clock, Download, Filter, ChevronDown, BarChart3, Flame, ExternalLink } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import { useState, useMemo, useEffect } from 'react';
+import { Search, TrendingUp, Eye, Heart, Clock, Download, Filter, ChevronDown, BarChart3, Flame, Users, Play, TrendingDown } from 'lucide-react';
+import { XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar, AreaChart, Area } from 'recharts';
 import { formatDistanceToNow } from 'date-fns';
 import { parseYouTubeUrl, exportToCSV, Video, Channel, formatNumber, formatDuration } from '@/lib/youtube';
 
 type SortField = 'viewCount' | 'likeCount' | 'engagementRate' | 'publishedAt' | 'trendScore';
 type SortOrder = 'asc' | 'desc';
 type TimeFilter = 'all' | 'week' | 'month' | 'quarter';
+
+function Skeleton({ className }: { className: string }) {
+  return <div className={`animate-pulse bg-slate-200 rounded ${className}`} />;
+}
+
+function MetricCard({ icon: Icon, label, value, trend, trendUp }: { icon: React.ElementType, label: string, value: string, trend?: string, trendUp?: boolean }) {
+  return (
+    <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+      <div className="flex items-center justify-between mb-4">
+        <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center">
+          <Icon className="w-5 h-5 text-indigo-600" />
+        </div>
+        {trend && (
+          <div className={`flex items-center gap-1 text-sm font-medium ${trendUp ? 'text-emerald-600' : 'text-rose-600'}`}>
+            {trendUp ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
+            {trend}
+          </div>
+        )}
+      </div>
+      <p className="text-sm text-slate-500 mb-1">{label}</p>
+      <p className="text-2xl font-bold text-slate-900">{value}</p>
+    </div>
+  );
+}
+
+function VideoCard({ video, rank, onClick }: { video: Video, rank: number, onClick: () => void }) {
+  return (
+    <div 
+      onClick={onClick}
+      className="group bg-white rounded-2xl p-5 shadow-sm border border-slate-100 hover:shadow-md hover:border-indigo-100 transition-all duration-200 cursor-pointer"
+    >
+      <div className="flex gap-4">
+        <span className="flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 text-sm font-semibold text-slate-500">
+          {rank}
+        </span>
+        <div className="relative flex-shrink-0">
+          <img
+            src={video.thumbnail}
+            alt={video.title}
+            className="w-40 h-24 rounded-xl object-cover"
+          />
+          <div className="absolute bottom-2 right-2 bg-black/80 px-2 py-0.5 rounded text-xs font-medium text-white">
+            {formatDuration(video.duration)}
+          </div>
+          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 rounded-xl transition-colors flex items-center justify-center">
+            <Play className="w-10 h-10 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+          </div>
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start gap-2 mb-2">
+            <h4 className="font-semibold text-slate-900 line-clamp-2 flex-1">{video.title}</h4>
+            {video.isTrending && (
+              <span className="flex-shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-full bg-amber-50 text-amber-600 text-xs font-medium">
+                <Flame className="w-3 h-3" />
+                Trending
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-4 text-sm text-slate-500 mb-3">
+            <span className="flex items-center gap-1">
+              <Clock className="w-3.5 h-3.5" />
+              {formatDistanceToNow(new Date(video.publishedAt), { addSuffix: true })}
+            </span>
+          </div>
+          <div className="grid grid-cols-4 gap-4">
+            <div>
+              <p className="text-xs text-slate-400 mb-0.5">Views</p>
+              <p className="font-semibold text-slate-900">{formatNumber(video.viewCount)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-slate-400 mb-0.5">Likes</p>
+              <p className="font-semibold text-slate-900">{formatNumber(video.likeCount)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-slate-400 mb-0.5">Comments</p>
+              <p className="font-semibold text-slate-900">{formatNumber(video.commentCount)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-slate-400 mb-0.5">Engagement</p>
+              <p className={`font-semibold ${video.engagementRate > 5 ? 'text-emerald-600' : 'text-slate-900'}`}>
+                {video.engagementRate.toFixed(1)}%
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function Home() {
   const [url, setUrl] = useState('');
@@ -20,6 +109,11 @@ export default function Home() {
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('month');
   const [showFilters, setShowFilters] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleAnalyze = async () => {
     if (!url.trim()) {
@@ -51,8 +145,9 @@ export default function Home() {
       
       setChannel(data.channel);
       setVideos(data.videos);
-    } catch (err: any) {
-      setError(err.message || 'Failed to fetch channel data. Check your API key or URL.');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to fetch channel data. Check your API key or URL.';
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -83,22 +178,25 @@ export default function Home() {
   }, [videos, sortField, sortOrder, timeFilter]);
 
   const chartData = useMemo(() => {
-    return filteredVideos.slice(0, 10).reverse().map(v => ({
-      name: v.title.length > 20 ? v.title.substring(0, 20) + '...' : v.title,
+    return filteredVideos.slice(0, 8).reverse().map(v => ({
+      name: v.title.length > 15 ? v.title.substring(0, 15) + '...' : v.title,
       views: v.viewCount,
       engagement: v.engagementRate,
+      likes: v.likeCount,
     }));
   }, [filteredVideos]);
 
   const stats = useMemo(() => {
     if (videos.length === 0) return null;
+    const filteredForStats = timeFilter !== 'all' ? filteredVideos : videos;
     return {
-      totalViews: videos.reduce((sum, v) => sum + v.viewCount, 0),
-      totalLikes: videos.reduce((sum, v) => sum + v.likeCount, 0),
-      avgEngagement: videos.reduce((sum, v) => sum + v.engagementRate, 0) / videos.length,
-      trendingCount: videos.filter(v => v.isTrending).length,
+      totalViews: filteredForStats.reduce((sum, v) => sum + v.viewCount, 0),
+      totalLikes: filteredForStats.reduce((sum, v) => sum + v.likeCount, 0),
+      avgEngagement: filteredForStats.reduce((sum, v) => sum + v.engagementRate, 0) / filteredForStats.length,
+      trendingCount: filteredForStats.filter(v => v.isTrending).length,
+      avgViews: filteredForStats.length > 0 ? filteredForStats.reduce((sum, v) => sum + v.viewCount, 0) / filteredForStats.length : 0,
     };
-  }, [videos]);
+  }, [videos, filteredVideos, timeFilter]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
@@ -106,143 +204,201 @@ export default function Home() {
     }
   };
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <header className="mb-12 text-center">
-          <div className="mb-4 flex items-center justify-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-red-500 to-orange-500">
-              <BarChart3 className="h-7 w-7 text-white" />
-            </div>
-            <h1 className="text-3xl font-bold text-white">VidMetrics</h1>
-          </div>
-          <p className="mx-auto max-w-xl text-lg text-slate-400">
-            Analyze competitor performance. Discover trending content. Ship smarter videos.
-          </p>
-        </header>
+  if (!mounted) return null;
 
-        <div className="mx-auto mb-12 max-w-3xl">
-          <div className="relative">
-            <div className="flex flex-col gap-4 sm:flex-row">
-              <div className="relative flex-1">
-                <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
-                <input
-                  type="text"
-                  value={url}
-                  onChange={(e) => setUrl(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Paste YouTube channel URL (e.g., @MrBeast or youtube.com/channel/UC...)"
-                  className="w-full rounded-xl border-0 bg-slate-800/50 py-4 pl-12 pr-4 text-white placeholder-slate-400 ring-1 ring-slate-700 transition-all focus:ring-2 focus:ring-red-500 focus:outline-none"
-                />
+  return (
+    <div className="min-h-screen bg-slate-50">
+      <header className="bg-white border-b border-slate-200 sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center">
+                <BarChart3 className="w-5 h-5 text-white" />
               </div>
-              <button
-                onClick={handleAnalyze}
-                disabled={loading}
-                className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-red-500 to-orange-500 px-8 py-4 font-semibold text-white transition-all hover:from-red-600 hover:to-orange-600 disabled:opacity-50"
-              >
-                {loading ? (
-                  <>
-                    <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                    Analyzing...
-                  </>
-                ) : (
-                  <>
-                    <TrendingUp className="h-5 w-5" />
-                    Analyze Channel
-                  </>
-                )}
-              </button>
+              <span className="text-xl font-bold text-slate-900">VidMetrics</span>
             </div>
-            {error && (
-              <p className="mt-3 text-sm text-red-400">{error}</p>
-            )}
+            <nav className="hidden md:flex items-center gap-6">
+              <a href="#" className="text-sm font-medium text-indigo-600">Dashboard</a>
+              <a href="#" className="text-sm font-medium text-slate-600 hover:text-slate-900">Channels</a>
+              <a href="#" className="text-sm font-medium text-slate-600 hover:text-slate-900">Reports</a>
+              <a href="#" className="text-sm font-medium text-slate-600 hover:text-slate-900">Settings</a>
+            </nav>
           </div>
         </div>
+      </header>
 
-        {channel && stats && (
-          <>
-            <div className="mb-8 rounded-2xl bg-slate-800/50 p-6 backdrop-blur-sm">
-              <div className="flex flex-wrap items-center gap-6">
-                <div className="flex items-center gap-4">
-                  <img src={channel.thumbnail} alt={channel.title} className="h-16 w-16 rounded-full" />
-                  <div>
-                    <h2 className="text-xl font-semibold text-white">{channel.title}</h2>
-                    <p className="text-slate-400">{formatNumber(channel.subscriberCount)} subscribers</p>
-                  </div>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-slate-900 mb-2">Competitor Analysis</h1>
+          <p className="text-slate-500">Analyze any YouTube channel to discover trending content and performance insights.</p>
+        </div>
+
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-8">
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+              <input
+                type="text"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Paste YouTube channel URL (e.g., @MrBeast or youtube.com/channel/UC...)"
+                className="w-full rounded-xl border border-slate-200 py-3.5 pl-12 pr-4 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-shadow"
+              />
+            </div>
+            <button
+              onClick={handleAnalyze}
+              disabled={loading}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 py-3.5 font-semibold text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
+            >
+              {loading ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Analyzing...
+                </>
+              ) : (
+                <>
+                  <TrendingUp className="w-5 h-5" />
+                  Analyze Channel
+                </>
+              )}
+            </button>
+          </div>
+          {error && (
+            <p className="mt-3 text-sm text-rose-600">{error}</p>
+          )}
+        </div>
+
+        {loading && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+                  <Skeleton className="w-10 h-10 rounded-xl mb-4" />
+                  <Skeleton className="w-20 h-4 mb-2" />
+                  <Skeleton className="w-32 h-8" />
                 </div>
-                <div className="flex flex-wrap gap-4 sm:gap-8">
-                  <div>
-                    <p className="text-sm text-slate-400">Total Views</p>
-                    <p className="text-2xl font-bold text-white">{formatNumber(stats.totalViews)}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-slate-400">Total Likes</p>
-                    <p className="text-2xl font-bold text-white">{formatNumber(stats.totalLikes)}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-slate-400">Avg. Engagement</p>
-                    <p className="text-2xl font-bold text-white">{stats.avgEngagement.toFixed(2)}%</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-slate-400">Trending Now</p>
-                    <p className="text-2xl font-bold text-orange-400 flex items-center gap-1">
-                      <Flame className="h-5 w-5" />
-                      {stats.trendingCount}
-                    </p>
-                  </div>
-                </div>
+              ))}
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+              <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 h-80">
+                <Skeleton className="w-40 h-6 mb-4" />
+                <Skeleton className="w-full h-56" />
+              </div>
+              <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 h-80">
+                <Skeleton className="w-40 h-6 mb-4" />
+                <Skeleton className="w-full h-56" />
               </div>
             </div>
+            <div className="space-y-4">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+                  <div className="flex gap-4">
+                    <Skeleton className="w-8 h-8 rounded-full" />
+                    <Skeleton className="w-40 h-24 rounded-xl" />
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="w-3/4 h-5" />
+                      <Skeleton className="w-1/4 h-4" />
+                      <div className="grid grid-cols-4 gap-4 mt-2">
+                        {[1, 2, 3, 4].map((j) => (
+                          <Skeleton key={j} className="h-8" />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
-            <div className="mb-8 grid gap-6 lg:grid-cols-2">
-              <div className="rounded-2xl bg-slate-800/50 p-6 backdrop-blur-sm">
-                <h3 className="mb-4 text-lg font-semibold text-white">Views Performance</h3>
-                <div className="h-64">
+        {channel && stats && !loading && (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+              <MetricCard
+                icon={Eye}
+                label="Total Views"
+                value={formatNumber(stats.totalViews)}
+              />
+              <MetricCard
+                icon={Heart}
+                label="Total Likes"
+                value={formatNumber(stats.totalLikes)}
+              />
+              <MetricCard
+                icon={Users}
+                label="Avg. Engagement"
+                value={`${stats.avgEngagement.toFixed(1)}%`}
+              />
+              <MetricCard
+                icon={Flame}
+                label="Trending Now"
+                value={stats.trendingCount.toString()}
+                trend="This month"
+                trendUp={true}
+              />
+            </div>
+
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-6">
+              <div className="flex flex-wrap items-center gap-4 mb-6">
+                <img src={channel.thumbnail} alt={channel.title} className="w-14 h-14 rounded-full" />
+                <div>
+                  <h2 className="text-lg font-semibold text-slate-900">{channel.title}</h2>
+                  <p className="text-sm text-slate-500">{formatNumber(channel.subscriberCount)} subscribers · {channel.videoCount} videos</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-700 mb-4">Views Performance</h3>
                   {chartData.length > 0 ? (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={chartData}>
-                        <XAxis dataKey="name" stroke="#64748b" fontSize={10} tickLine={false} />
-                        <YAxis stroke="#64748b" fontSize={10} tickLine={false} tickFormatter={(v) => formatNumber(v)} />
+                    <ResponsiveContainer width="100%" height={240}>
+                      <AreaChart data={chartData}>
+                        <defs>
+                          <linearGradient id="viewsGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#6366f1" stopOpacity={0.2}/>
+                            <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                          </linearGradient>
+                        </defs>
+                        <XAxis dataKey="name" stroke="#94a3b8" fontSize={10} tickLine={false} axisLine={false} />
+                        <YAxis stroke="#94a3b8" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(v) => formatNumber(v)} />
                         <Tooltip
-                          contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px', color: '#fff' }}
+                          contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '12px' }}
                           formatter={(value) => [formatNumber(Number(value)), 'Views']}
                         />
-                        <Bar dataKey="views" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                        <Area type="monotone" dataKey="views" stroke="#6366f1" fill="url(#viewsGradient)" strokeWidth={2} />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-60 flex items-center justify-center text-slate-400">No data available</div>
+                  )}
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-700 mb-4">Engagement Rate</h3>
+                  {chartData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={240}>
+                      <BarChart data={chartData}>
+                        <XAxis dataKey="name" stroke="#94a3b8" fontSize={10} tickLine={false} axisLine={false} />
+                        <YAxis stroke="#94a3b8" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(v) => `${v.toFixed(1)}%`} />
+                        <Tooltip
+                          contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '12px' }}
+                          formatter={(value) => [`${Number(value).toFixed(2)}%`, 'Engagement']}
+                        />
+                        <Bar dataKey="engagement" fill="#10b981" radius={[4, 4, 0, 0]} />
                       </BarChart>
                     </ResponsiveContainer>
                   ) : (
-                    <div className="flex h-full items-center justify-center text-slate-500">No data</div>
-                  )}
-                </div>
-              </div>
-
-              <div className="rounded-2xl bg-slate-800/50 p-6 backdrop-blur-sm">
-                <h3 className="mb-4 text-lg font-semibold text-white">Engagement Rate</h3>
-                <div className="h-64">
-                  {chartData.length > 0 ? (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={chartData}>
-                        <XAxis dataKey="name" stroke="#64748b" fontSize={10} tickLine={false} />
-                        <YAxis stroke="#64748b" fontSize={10} tickLine={false} tickFormatter={(v) => `${v.toFixed(1)}%`} />
-                        <Tooltip
-                          contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px', color: '#fff' }}
-                          formatter={(value) => [`${Number(value).toFixed(2)}%`, 'Engagement']}
-                        />
-                        <Line type="monotone" dataKey="engagement" stroke="#f97316" strokeWidth={2} dot={{ fill: '#f97316' }} />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  ) : (
-                    <div className="flex h-full items-center justify-center text-slate-500">No data</div>
+                    <div className="h-60 flex items-center justify-center text-slate-400">No data available</div>
                   )}
                 </div>
               </div>
             </div>
 
-            <div className="rounded-2xl bg-slate-800/50 p-6 backdrop-blur-sm">
-              <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-                <div className="flex flex-wrap items-center gap-3">
-                  <h3 className="text-lg font-semibold text-white">Video Performance</h3>
-                  <span className="rounded-full bg-slate-700 px-3 py-1 text-sm text-slate-300">
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+              <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+                <div className="flex items-center gap-3">
+                  <h3 className="text-lg font-semibold text-slate-900">Video Performance</h3>
+                  <span className="px-3 py-1 rounded-full bg-slate-100 text-sm font-medium text-slate-600">
                     {filteredVideos.length} videos
                   </span>
                 </div>
@@ -250,7 +406,7 @@ export default function Home() {
                   <select
                     value={timeFilter}
                     onChange={(e) => setTimeFilter(e.target.value as TimeFilter)}
-                    className="rounded-lg bg-slate-700 px-3 py-2 text-sm text-white focus:ring-2 focus:ring-red-500"
+                    className="px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   >
                     <option value="all">All Time</option>
                     <option value="week">Last 7 Days</option>
@@ -259,30 +415,30 @@ export default function Home() {
                   </select>
                   <button
                     onClick={() => setShowFilters(!showFilters)}
-                    className="flex items-center gap-2 rounded-lg bg-slate-700 px-3 py-2 text-sm text-white hover:bg-slate-600"
+                    className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-700 hover:bg-slate-50"
                   >
-                    <Filter className="h-4 w-4" />
+                    <Filter className="w-4 h-4" />
                     Sort
-                    <ChevronDown className={`h-4 w-4 transition-transform ${showFilters ? 'rotate-180' : ''}`} />
+                    <ChevronDown className={`w-4 h-4 transition-transform ${showFilters ? 'rotate-180' : ''}`} />
                   </button>
                   <button
                     onClick={() => exportToCSV(filteredVideos, channel.title)}
-                    className="flex items-center gap-2 rounded-lg bg-green-600 px-3 py-2 text-sm text-white hover:bg-green-700"
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 text-sm font-medium text-white hover:bg-emerald-700"
                   >
-                    <Download className="h-4 w-4" />
+                    <Download className="w-4 h-4" />
                     Export CSV
                   </button>
                 </div>
               </div>
 
               {showFilters && (
-                <div className="mb-6 flex flex-wrap gap-4 rounded-lg bg-slate-700/50 p-4">
+                <div className="flex flex-wrap gap-4 p-4 bg-slate-50 rounded-xl mb-6">
                   <div>
-                    <label className="mb-1 block text-xs text-slate-400">Sort By</label>
+                    <label className="block text-xs font-medium text-slate-500 mb-1.5">Sort By</label>
                     <select
                       value={sortField}
                       onChange={(e) => setSortField(e.target.value as SortField)}
-                      className="rounded-lg bg-slate-600 px-3 py-2 text-sm text-white"
+                      className="px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     >
                       <option value="trendScore">Trending Score</option>
                       <option value="viewCount">Views</option>
@@ -292,11 +448,11 @@ export default function Home() {
                     </select>
                   </div>
                   <div>
-                    <label className="mb-1 block text-xs text-slate-400">Order</label>
+                    <label className="block text-xs font-medium text-slate-500 mb-1.5">Order</label>
                     <select
                       value={sortOrder}
                       onChange={(e) => setSortOrder(e.target.value as SortOrder)}
-                      className="rounded-lg bg-slate-600 px-3 py-2 text-sm text-white"
+                      className="px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     >
                       <option value="desc">Highest First</option>
                       <option value="asc">Lowest First</option>
@@ -305,83 +461,14 @@ export default function Home() {
                 </div>
               )}
 
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {filteredVideos.map((video, index) => (
-                  <div
+                  <VideoCard
                     key={video.id}
-                    className="group flex flex-col gap-4 rounded-xl bg-slate-700/30 p-4 transition-all hover:bg-slate-700/50 sm:flex-row sm:items-center"
-                  >
-                    <div className="flex items-center gap-4">
-                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-600 text-sm font-medium text-slate-300">
-                        {index + 1}
-                      </span>
-                      <div className="relative flex-shrink-0">
-                        <img
-                          src={video.thumbnail}
-                          alt={video.title}
-                          className="h-20 w-36 rounded-lg object-cover"
-                        />
-                        <span className="absolute bottom-1 right-1 rounded bg-black/80 px-1.5 py-0.5 text-xs font-medium text-white">
-                          {formatDuration(video.duration)}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start gap-2">
-                        <h4 className="font-medium text-white line-clamp-2">{video.title}</h4>
-                        {video.isTrending && (
-                          <span className="flex-shrink-0 rounded-full bg-orange-500/20 px-2 py-0.5 text-xs font-medium text-orange-400">
-                            <Flame className="inline h-3 w-3 mr-1" />
-                            Trending
-                          </span>
-                        )}
-                      </div>
-                      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-400">
-                        <span className="flex items-center gap-1">
-                          <Clock className="h-3.5 w-3.5" />
-                          {formatDistanceToNow(new Date(video.publishedAt), { addSuffix: true })}
-                        </span>
-                        <a
-                          href={`https://youtube.com/watch?v=${video.id}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-1 text-slate-400 hover:text-red-400"
-                        >
-                          <ExternalLink className="h-3.5 w-3.5" />
-                          Watch
-                        </a>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                      <div>
-                        <div className="flex items-center gap-1 text-sm text-slate-400">
-                          <Eye className="h-3.5 w-3.5" />
-                          Views
-                        </div>
-                        <p className="font-semibold text-white">{formatNumber(video.viewCount)}</p>
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-1 text-sm text-slate-400">
-                          <Heart className="h-3.5 w-3.5" />
-                          Likes
-                        </div>
-                        <p className="font-semibold text-white">{formatNumber(video.likeCount)}</p>
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-1 text-sm text-slate-400">
-                          <MessageCircle className="h-3.5 w-3.5" />
-                          Comments
-                        </div>
-                        <p className="font-semibold text-white">{formatNumber(video.commentCount)}</p>
-                      </div>
-                      <div>
-                        <div className="text-sm text-slate-400">Engagement</div>
-                        <p className={`font-semibold ${video.engagementRate > 5 ? 'text-green-400' : 'text-white'}`}>
-                          {video.engagementRate.toFixed(2)}%
-                        </p>
-                      </div>
-                    </div>
-                  </div>
+                    video={video}
+                    rank={index + 1}
+                    onClick={() => window.open(`https://youtube.com/watch?v=${video.id}`, '_blank')}
+                  />
                 ))}
               </div>
             </div>
@@ -389,22 +476,25 @@ export default function Home() {
         )}
 
         {!channel && !loading && (
-          <div className="mt-20 text-center">
-            <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-slate-800">
-              <BarChart3 className="h-10 w-10 text-slate-600" />
+          <div className="text-center py-20">
+            <div className="w-20 h-20 rounded-2xl bg-indigo-50 flex items-center justify-center mx-auto mb-6">
+              <BarChart3 className="w-10 h-10 text-indigo-400" />
             </div>
-            <h3 className="mb-2 text-xl font-medium text-slate-300">Enter a channel URL to get started</h3>
-            <p className="text-slate-500">
-              Paste any YouTube channel link above to analyze video performance
+            <h3 className="text-xl font-semibold text-slate-900 mb-2">Enter a channel URL to get started</h3>
+            <p className="text-slate-500 max-w-md mx-auto">
+              Paste any YouTube channel link above to analyze video performance and discover trending content.
             </p>
           </div>
         )}
+      </main>
 
-        <footer className="mt-16 border-t border-slate-800 pt-8 text-center text-sm text-slate-500">
-          <p>VidMetrics - YouTube Analytics for Enterprise Creators</p>
-          <p className="mt-1">Powered by YouTube Data API</p>
-        </footer>
-      </div>
+      <footer className="border-t border-slate-200 bg-white mt-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <p className="text-sm text-slate-500 text-center">
+            VidMetrics — YouTube Analytics for Enterprise Creators
+          </p>
+        </div>
+      </footer>
     </div>
   );
 }
