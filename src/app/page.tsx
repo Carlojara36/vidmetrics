@@ -198,34 +198,42 @@ export default function Home() {
               <div className="rounded-2xl bg-slate-800/50 p-6 backdrop-blur-sm">
                 <h3 className="mb-4 text-lg font-semibold text-white">Views Performance</h3>
                 <div className="h-64">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={chartData}>
-                      <XAxis dataKey="name" stroke="#64748b" fontSize={10} tickLine={false} />
-                      <YAxis stroke="#64748b" fontSize={10} tickLine={false} tickFormatter={(v) => formatNumber(v)} />
-                      <Tooltip
-                        contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px', color: '#fff' }}
-                        formatter={(value) => [formatNumber(Number(value)), 'Views']}
-                      />
-                      <Bar dataKey="views" fill="#ef4444" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
+                  {chartData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={chartData}>
+                        <XAxis dataKey="name" stroke="#64748b" fontSize={10} tickLine={false} />
+                        <YAxis stroke="#64748b" fontSize={10} tickLine={false} tickFormatter={(v) => formatNumber(v)} />
+                        <Tooltip
+                          contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px', color: '#fff' }}
+                          formatter={(value) => [formatNumber(Number(value)), 'Views']}
+                        />
+                        <Bar dataKey="views" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="flex h-full items-center justify-center text-slate-500">No data</div>
+                  )}
                 </div>
               </div>
 
               <div className="rounded-2xl bg-slate-800/50 p-6 backdrop-blur-sm">
                 <h3 className="mb-4 text-lg font-semibold text-white">Engagement Rate</h3>
                 <div className="h-64">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={chartData}>
-                      <XAxis dataKey="name" stroke="#64748b" fontSize={10} tickLine={false} />
-                      <YAxis stroke="#64748b" fontSize={10} tickLine={false} tickFormatter={(v) => `${v.toFixed(1)}%`} />
-                      <Tooltip
-                        contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px', color: '#fff' }}
-                        formatter={(value) => [`${Number(value).toFixed(2)}%`, 'Engagement']}
-                      />
-                      <Line type="monotone" dataKey="engagement" stroke="#f97316" strokeWidth={2} dot={{ fill: '#f97316' }} />
-                    </LineChart>
-                  </ResponsiveContainer>
+                  {chartData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={chartData}>
+                        <XAxis dataKey="name" stroke="#64748b" fontSize={10} tickLine={false} />
+                        <YAxis stroke="#64748b" fontSize={10} tickLine={false} tickFormatter={(v) => `${v.toFixed(1)}%`} />
+                        <Tooltip
+                          contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px', color: '#fff' }}
+                          formatter={(value) => [`${Number(value).toFixed(2)}%`, 'Engagement']}
+                        />
+                        <Line type="monotone" dataKey="engagement" stroke="#f97316" strokeWidth={2} dot={{ fill: '#f97316' }} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="flex h-full items-center justify-center text-slate-500">No data</div>
+                  )}
                 </div>
               </div>
             </div>
